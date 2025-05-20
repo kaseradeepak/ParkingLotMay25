@@ -1,21 +1,28 @@
 package com.scaler.services;
 
 import com.scaler.exceptions.GateNotFoundException;
+import com.scaler.factory.ParkingSpotAssignmentStrategyFactory;
 import com.scaler.models.*;
 import com.scaler.repositories.GateRepository;
+import com.scaler.repositories.TicketRepository;
 import com.scaler.repositories.VehicleRepository;
 import com.scaler.strategy.ParkingSpotAssignStrategyType;
 import com.scaler.strategy.ParkingSpotAssignmentStrategy;
 
+import java.util.Date;
 import java.util.Optional;
 
 public class TicketService {
     private GateRepository gateRepository;
     private VehicleRepository vehicleRepository;
+    private TicketRepository ticketRepository;
 
-    public TicketService(GateRepository gateRepository, VehicleRepository vehicleRepository) {
+    public TicketService(GateRepository gateRepository,
+                         VehicleRepository vehicleRepository,
+                         TicketRepository ticketRepository) {
         this.gateRepository = gateRepository;
         this.vehicleRepository = vehicleRepository;
+        this.ticketRepository = ticketRepository;
     }
 
     public Ticket generateTicket(Long gateId,
@@ -55,9 +62,21 @@ public class TicketService {
             vehicle = optionalVehicle.get();
         }
 
-        ParkingSpot parkingSpot =
+        ParkingSpotAssignmentStrategy spotAssignmentStrategy = ParkingSpotAssignmentStrategyFactory
+                .getParkingSpotAssignStrategy(strategyType);
 
+        ParkingSpot parkingSpot = null;
+        if (spotAssignmentStrategy != null) {
+            parkingSpot = spotAssignmentStrategy.assignParkingSpot(vehicle);
+        }
 
+        Ticket ticket = new Ticket();
+        ticket.setEntryTime(new Date());
+        ticket.setGate(gate);
+        ticket.setVehicle(vehicle);
+        ticket.setParkingSpot(parkingSpot);
+
+        //save the ticket to the DB.
+        return ticketRepository.save(ticket);
     }
-
 }
